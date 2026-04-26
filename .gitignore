@@ -1,0 +1,20 @@
+# Ignore the Python virtual environment (this is the 10,000 files!)
+.venv/
+venv/
+env/
+ENV/
+
+# Ignore local environment variables (your Groq key)
+.env
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore tool-specific folders
+.uv/
+.ipynb_checkpoints/
+
+# Ignore OS-specific junk
+.DS_Store
+Thumbs.db
