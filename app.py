@@ -15,27 +15,22 @@ if "chat_history" not in st.session_state:
 if "last_error" not in st.session_state:
     st.session_state.last_error = None
 
-# --- 2. CORE EXECUTION FUNCTION ---
+# --- 2. CORE EXECUTION FUNCTION (Logic Unchanged) ---
 def run_analysis(user_query, aircraft_type):
-    """
-    Triggers the Agentic Workflow. 
-    Uses a context-aware injection to prevent 'tell me more' errors.
-    """
-    # 1. Add current query to history
     st.session_state.chat_history.append({"role": "user", "content": user_query})
     st.session_state.last_error = None
 
     try:
-        with st.status("🤖 Consulting manuals and history...", expanded=True) as status:
+        with st.status("🤖 Consulting manuals and safety history...", expanded=True) as status:
             app_workflow = create_maintenance_workflow()
             
-            # SLIDING WINDOW: We send last 3 turns so it remembers what 'it' or 'that' refers to.
+            # SLIDING WINDOW: Remembers context
             managed_messages = st.session_state.chat_history[-3:] 
             
             initial_input = {
                 "messages": managed_messages,
                 "aircraft_model": aircraft_type,
-                "fault_code": user_query, # The agent uses this + messages history
+                "fault_code": user_query,
                 "technical_steps": "",
                 "safety_warnings": "",
                 "is_safety_cleared": False
@@ -47,10 +42,8 @@ def run_analysis(user_query, aircraft_type):
         # --- OUTPUT CLEANING ---
         tech_raw = final_result.get("technical_steps", "No data found.")
         safety_raw = final_result.get("safety_warnings", "No data found.")
-        
         tech_clean = tech_raw.split("</function>")[-1].strip()
         
-        # Safety Parser
         if "{" in safety_raw and "findings" in safety_raw:
             try:
                 start, end = safety_raw.find("{"), safety_raw.rfind("}") + 1
@@ -61,7 +54,6 @@ def run_analysis(user_query, aircraft_type):
         else:
             safety_clean = safety_raw.split("</function>")[-1].strip()
 
-        # Save assistant response
         combined = f"### 🛠️ Repair Steps\n{tech_clean}\n\n---\n### 🛡️ Safety Audit\n{safety_clean}"
         st.session_state.chat_history.append({"role": "assistant", "content": combined})
 
@@ -76,38 +68,63 @@ def run_analysis(user_query, aircraft_type):
     
     st.rerun()
 
-# --- 3. PAGE CONFIGURATION ---
-st.set_page_config(page_title="United Ops AI", page_icon="✈️", layout="wide")
-st.title("✈️ United Airlines: Agentic Maintenance Engine")
+# --- 3. PAGE CONFIG & BRANDING ---
+st.set_page_config(page_title="AeroIntel Engine", page_icon="✈️", layout="wide")
 
-# --- 4. PERSISTENT ERROR DISPLAY ---
+# --- 4. SIDEBAR: CAPABILITIES & ENHANCED HELP ---
+with st.sidebar:
+    st.title("✈️ AeroIntel Engine")
+    st.caption("v1.2.0 | Agentic Maintenance")
+    st.divider()
+    
+    st.subheader("🚀 System Capabilities")
+    st.info("""
+    - **Multi-Agent RAG:** Cross-references FAA & Technician Handbooks.
+    - **Safety Auditor Agent:** Validates steps against risk protocols.
+    - **Sliding History:** Remembers the last 3 turns for context-aware chat.
+    """)
+    
+    with st.expander("💡 Enhance your Questions"):
+        st.write("""
+        For better results, include:
+        * **Aircraft Type:** (Already selected below)
+        * **Specific Symptom:** (e.g., 'vibration', 'leak')
+        * **Phase of Flight:** (e.g., 'at idle', 'during taxi')
+        """)
+    st.divider()
+    aircraft = st.selectbox("Current Aircraft Model", ["Boeing 737-800", "Boeing 777-200", "Airbus A320"])
+
+# --- 5. MAIN UI HEADER ---
+st.title("✈️ AeroIntel: Agentic Maintenance Engine")
+st.markdown("---")
+
+# --- 6. PERSISTENT ERROR DISPLAY ---
 if st.session_state.last_error:
     st.error(st.session_state.last_error)
     if st.button("Clear Notification"):
         st.session_state.last_error = None
         st.rerun()
 
-# --- 5. ONE-CLICK SAMPLES ---
+# --- 7. ONE-CLICK SAMPLES ---
 st.subheader("📋 Select a Sample Fault")
-aircraft = st.selectbox("Current Aircraft Model", ["Boeing 737-800", "Boeing 777-200"])
 col1, col2, col3 = st.columns(3)
 samples = {"737": "Hydraulic leakage in left engine.", "777": "Fuel imbalance cross-feed valve.", "Gen": "Stabilizer skin corrosion."}
 
 with col1:
-    if st.button("🔧 737 Hydraulic"): run_analysis(samples["737"], aircraft)
+    if st.button("🔧 Hydraulic Leak"): run_analysis(samples["737"], aircraft)
 with col2:
-    if st.button("⛽ 777 Fuel"): run_analysis(samples["777"], aircraft)
+    if st.button("⛽ Fuel Imbalance"): run_analysis(samples["777"], aircraft)
 with col3:
-    if st.button("🛠️ Corrosion"): run_analysis(samples["Gen"], aircraft)
+    if st.button("🛠️ Skin Corrosion"): run_analysis(samples["Gen"], aircraft)
 
 st.divider()
 
-# --- 6. CHAT HISTORY DISPLAY ---
+# --- 8. CHAT HISTORY DISPLAY ---
 for message in st.session_state.chat_history:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- 7. MANUAL INPUT ---
-user_query = st.chat_input("Ask a follow-up (e.g., 'Tell me more in detail') or enter a fault...")
+# --- 9. MANUAL INPUT ---
+user_query = st.chat_input("Ask a follow-up or enter a new fault code...")
 if user_query:
     run_analysis(user_query, aircraft)
