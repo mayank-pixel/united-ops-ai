@@ -1,16 +1,8 @@
-print("🔄 DEBUG: Starting to load nodes.py...")
-
 from crewai import Task, Crew
-print("🔄 DEBUG: CrewAI imported")
-
 from src.agents.researcher import maintenance_mechanic, safety_auditor
-print("🔄 DEBUG: Agents imported successfully")
-
 from src.graph.state import AgentState
-print("🔄 DEBUG: State imported")
 
 def research_and_audit_node(state: AgentState):
-    print(f"🚀 Node Execution Started for: {state['fault_code']}")
     
     research_task = Task(
         description=(
